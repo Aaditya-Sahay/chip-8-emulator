@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 rand= "0.5"
+direct-gui = "0.1"
+minifb = "0.14"

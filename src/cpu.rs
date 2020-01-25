@@ -19,7 +19,8 @@ pub struct CPU {
     sp: usize, //pointer to top of stack.
     memory: [u8; 4096], // 4kb memory :)
     stack: [u16; 16], // our friendly old stack
-    pub keystrokes: [bool; 16] //so apparently chip 8 has 16 keys
+    pub keystrokes: [bool; 16], //so apparently chip 8 has 16 keys
+    pub display: [[bool;64]; 32] //gonna admit this is much better than [][]
 }
 
 impl CPU {
@@ -35,6 +36,7 @@ impl CPU {
             memory: [0; 4096],
             stack: [0; 16],
             keystrokes: [false; 16], //maybe convert this to bool.
+            display: [[false; 64]; 32],
         }
     }
     pub fn load(&mut self, program: &mut Vec<u8>){
@@ -44,7 +46,8 @@ impl CPU {
             self.memory[index] = byte; // load program into memory
         }
     }
-    pub fn load_sprites(&mut self, data: &mut Vec<u8>){
+    pub fn load_sprites(&mut self){
+        // note to my stupid self: these are characters 
         let sprites: [u8; 80] = [0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
                                  0x20, 0x60, 0x20, 0x20, 0x70,  // 1
                                  0xF0, 0x10, 0xF0, 0x80, 0xF0,  // 2
@@ -61,12 +64,14 @@ impl CPU {
                                  0xE0, 0x90, 0x90, 0x90, 0xE0,  // D
                                  0xF0, 0x80, 0xF0, 0x80, 0xF0,  // E
                                  0xF0, 0x80, 0xF0, 0x80, 0x80];// F
+
+        //filling memory till 0x200                       
         let mut data = vec![0; 0x200];
         for i in 0..80 {
             data[i] = sprites[i];
         }
         for (index, &byte) in data.iter().enumerate(){
-            self.memory[index] = byte; // load program into memory
+            self.memory[index] = byte; // load items from data into self.memory
         }
 
     }
@@ -96,9 +101,7 @@ impl CPU {
     fn get_y(&self) -> u8 { 
         ((self.opcode & 0x00f0) >> 4) as u8 
     }
-    fn get_z(&self) -> u8 { 
-        (self.opcode & 0x000f) as u8 
-    }
+
     fn execute(&mut self) {
         match self.opcode & 0xf000 {
             0x0000 => self.code_0xxx(), // 00e0 = clear screen; 00ee = return from subroutine; 0000 = exit
@@ -108,6 +111,15 @@ impl CPU {
             0x4000 => self.op_sne(), // 4xkk; if v[x] != kk skip next instruction
             0x5000 => self.op_se_xy(), //5xy0 vx == vy increment pc()
             0x6000 => self.op_ld_vx_byte(), //6xkk set Vx = kk
+            0x7000 => self.op_add_vx_byte(), //yes i have gotten lazy
+            0x8000 => self.code_8xxx(),
+            0x9000 => self.op_sne_vx_vy(),
+            0xA000 => self.op_ld_i_addr(),
+            0xB000 => self.op_jp_v0_addr(),
+            0xC000 => self.op_rnd_vx_byte(),
+            0xD000 => self.op_drw_vx_vy_n(),
+            0xE000 => self.code_exxx(),
+            0xF000 => self.code_fxxx(),
             _      => self.unimplemented()
         }
     }
@@ -123,9 +135,48 @@ impl CPU {
             _    => self.unimplemented() //incase does not match the three known instruction set go back to exiting
         }
     }
+    fn code_8xxx(&mut self) {
+        match self.opcode & 0x000f {
+            0   => self.op_ld_vx_vy(),
+            1   => self.op_or(),
+            2   => self.op_and(),
+            3   => self.op_xor(),
+            4   => self.op_add_vx_vy(),
+            5   => self.op_sub_vx_vy(),
+            6   => self.op_shr_vx_vy(),
+            7   => self.op_subn_vx_vy(),
+            0xE => self.op_shl_vx_vy(),
+            _   => self.unimplemented()
+        }
+    }
+    fn code_fxxx(&mut self) {
+        match self.opcode & 0x00FF {
+            0x07 => self.op_ld_vx_dt(),
+            0x0A => self.op_ld_vx_k(),
+            0x15 => self.op_ld_dt_vx(),
+            0x18 => self.op_ld_st_vx(),
+            0x1E => self.op_add_i_vx(),
+            0x29 => self.op_ld_f_vx(),
+            0x33 => self.op_ld_b_vx(),
+            0x55 => self.op_ld_i_vx(),
+            0x65 => self.op_ld_vx_i(),
+            _    => self.unimplemented()
+        }
+    }
+
+    fn code_exxx(&mut self) {
+        match self.opcode & 0x00FF {
+            0x9E => self.op_skp_vx(),
+            0xA1 => self.op_sknp_vx(),
+            _    => self.unimplemented()
+        }
+    }
+
     //clear screen operation
     fn op_cls(&mut self) {
+        self.display = [[false; 64]; 32];
 
+        self.inc_pc();
     }
     // Return from a subroutine.
     fn op_ret(&mut self) {
@@ -251,7 +302,6 @@ impl CPU {
     fn op_shl_vx_vy(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
-
         self.v[0xf] = self.v[y]>> 7;
         self.v[x] = self.v[y] << 1;
         self.inc_pc();
@@ -260,13 +310,10 @@ impl CPU {
         if self.v[self.get_x() as usize] != self.v[self.get_y() as usize] {
             self.inc_pc();
         }
-
         self.inc_pc();
     }
-
     fn op_ld_i_addr(&mut self) {
         self.i = self.get_nnn();
-
         self.inc_pc();
     }
     fn op_jp_v0_addr(&mut self) {
@@ -279,7 +326,48 @@ impl CPU {
     }
     fn op_drw_vx_vy_n(&mut self) {
       // will draw here 
-      
+      let vx = self.v[self.get_x() as usize] as usize;
+        let vy = self.v[self.get_y() as usize] as usize;
+        let n = (self.opcode & 0x000f) as u8  as usize;
+        let i = self.i as usize;
+        let mut flipped = false;
+
+        if (vx > 0x3F) | (vy > 0x1F) { return; }
+        {
+            // Read n bytes from memory -- this is the sprite.
+            // n is number of bytes, where each row of the sprite is 1 byte.
+            let sprite = &self.memory[i .. i + n];
+
+            // find our (x, y) to display pixel of sprite at
+            // This gets the row we're on...
+            for row_index in 0 .. n {
+                if vy + row_index > 31 { break; }
+                let row = &mut self.display[row_index + vy];
+
+                // get the slice of the row we'll be modifying, starting at x = Vx
+                let vxp8; // this clips "vx + 8" so that the maximum value is 64.
+                if vx + 8 > 64 { vxp8 = 64; } else { vxp8 = vx + 8; }
+                let row_slice = &mut row[vx .. vxp8];
+                // Get the current row of the slice
+                let cur_row_sprite = &sprite[row_index];
+
+                // now apply it to display buffer's rows by XOR, flipping if necessary
+                for pixel in 0..row_slice.len() {
+                        // mask and shift to get current bit of sprite
+                        let sprite_pixel = cur_row_sprite & (0x80 >> pixel) != 0;
+
+                        if row_slice[pixel] & sprite_pixel {
+                            flipped = true;
+                        }
+
+                        row_slice[pixel] = row_slice[pixel] ^ sprite_pixel;
+                }
+
+            }
+        }
+
+        if flipped { self.v[0xF] = 1} else { self.v[0xF] = 0 }
+        self.inc_pc();
     }
     fn op_skp_vx(&mut self) {
         let key = self.v[self.get_x() as usize] as usize;
@@ -331,7 +419,6 @@ impl CPU {
         self.i = (self.v[self.get_x() as usize] * 5) as u16;
         self.inc_pc();
     }
-
     fn op_ld_b_vx(&mut self) {
         let vx = self.v[self.get_x() as usize];
         let i = self.i as usize;
@@ -340,7 +427,6 @@ impl CPU {
         self.memory[i + 2] = (vx %100) %10;
         self.inc_pc();
     }
-
     fn op_ld_i_vx(&mut self) {
         let x = self.get_x() as u16;
         let i = self.i;
@@ -350,7 +436,6 @@ impl CPU {
         self.i = i + x + 1;
         self.inc_pc();
     }
-
     fn op_ld_vx_i(&mut self) {
         let x = self.get_x() as u16;
         let i = self.i;
@@ -360,7 +445,6 @@ impl CPU {
         self.i = i + x + 1;
         self.inc_pc();
     }
-
     
 
 }

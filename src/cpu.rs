@@ -36,7 +36,7 @@ impl CPU {
             memory: [0; 4096],
             stack: [0; 16],
             keystrokes: [false; 16], //maybe convert this to bool.
-            display: [[false; 64]; 32],
+            display: [[true; 64]; 32],
         }
     }
     pub fn load(&mut self, program: &mut Vec<u8>){

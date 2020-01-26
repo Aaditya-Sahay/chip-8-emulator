@@ -95,10 +95,10 @@ impl CPU {
     fn get_kk(&self) -> u8 { // returns kk bit of opcode 3x(kk)
         (self.opcode & 0x00ff) as u8
     }
-    fn get_x(&self) -> u8 { 
+    fn get_x(&self) -> u8 {  // returns x bit of opcode 3(x)kk
         ((self.opcode & 0x0f00) >> 8) as u8
     }
-    fn get_y(&self) -> u8 { 
+    fn get_y(&self) -> u8 {  //returns y bit of opcode 3x(y)z
         ((self.opcode & 0x00f0) >> 4) as u8 
     }
 
@@ -112,9 +112,9 @@ impl CPU {
             0x5000 => self.op_se_xy(), //5xy0 vx == vy increment pc()
             0x6000 => self.op_ld_vx_byte(), //6xkk set Vx = kk
             0x7000 => self.op_add_vx_byte(), //yes i have gotten lazy
-            0x8000 => self.code_8xxx(),
-            0x9000 => self.op_sne_vx_vy(),
-            0xA000 => self.op_ld_i_addr(),
+            0x8000 => self.code_8xxx(), //further matches with all possible 8xxx code
+            0x9000 => self.op_sne_vx_vy(), //skip if vx not equal vy
+            0xA000 => self.op_ld_i_addr(), 
             0xB000 => self.op_jp_v0_addr(),
             0xC000 => self.op_rnd_vx_byte(),
             0xD000 => self.op_drw_vx_vy_n(),
@@ -323,41 +323,44 @@ impl CPU {
     }
     fn op_drw_vx_vy_n(&mut self) {
       // will draw here 
-      let vx = self.v[self.get_x() as usize] as usize;
-        let vy = self.v[self.get_y() as usize] as usize;
-        let n = (self.opcode & 0x000f) as u8  as usize;
-        let i = self.i as usize;
-        let mut flipped = false;
+      /*
+        from the spec book.
+        The interpreter reads n bytes from memory, starting at the address stored in I. 
+        These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). 
+        Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, 
+        otherwise it is set to 0. If the sprite is positioned so part of it is outside the coordinates of the display, 
+        it wraps around to the opposite side of the screen. See instruction 8xy3 for more information on XOR, and section 2.4
+    */
+        let vx = self.v[self.get_x() as usize] as usize; // get x 
+        let vy = self.v[self.get_y() as usize] as usize; // get y 
+        let n = (self.opcode & 0x000f) as u8  as usize; // get z 
+        let i = self.i as usize; // I 
+        let mut flipped = false; 
 
-        if (vx > 0x3F) | (vy > 0x1F) { return; }
+        if (vx > 0x3F) | (vy > 0x1F) { 
+            return; 
+        }
         {
-            // Read n bytes from memory -- this is the sprite.
-            // n is number of bytes, where each row of the sprite is 1 byte.
             let sprite = &self.memory[i .. i + n];
-
-            // find our (x, y) to display pixel of sprite at
-            // This gets the row we're on...
-            for row_index in 0 .. n {
-                if vy + row_index > 31 { break; }
-                let row = &mut self.display[row_index + vy];
-
-                // get the slice of the row we'll be modifying, starting at x = Vx
-                let vxp8; // this clips "vx + 8" so that the maximum value is 64.
-                if vx + 8 > 64 { vxp8 = 64; } else { vxp8 = vx + 8; }
-                let row_slice = &mut row[vx .. vxp8];
-                // Get the current row of the slice
-                let cur_row_sprite = &sprite[row_index];
-
-                // now apply it to display buffer's rows by XOR, flipping if necessary
-                for pixel in 0..row_slice.len() {
-                        // mask and shift to get current bit of sprite
+            for row_count in 0 .. n {
+                if vy + row_count > 31 {  //wrapping around the screen.
+                    break; 
+                }
+                let row = &mut self.display[row_count + vy];
+                let vxp8;
+                if vx + 8 > 64 { 
+                    vxp8 = 64; 
+                } else { 
+                    vxp8 = vx + 8; 
+                }
+                let slice = &mut row[vx .. vxp8];
+                let cur_row_sprite = &sprite[row_count];
+                for pixel in 0..slice.len() {
                         let sprite_pixel = cur_row_sprite & (0x80 >> pixel) != 0;
-
-                        if row_slice[pixel] & sprite_pixel {
+                        if slice[pixel] & sprite_pixel {
                             flipped = true;
                         }
-
-                        row_slice[pixel] = row_slice[pixel] ^ sprite_pixel;
+                        slice[pixel] = slice[pixel] ^ sprite_pixel;
                 }
 
             }

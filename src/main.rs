@@ -8,19 +8,19 @@ extern crate minifb;
 use std::fs::File;
 use std::io::Read;
 
-//@https://github.com/Hammster's suggestion && https://github.com/tversteeg/direct-gui
+//https://github.com/Hammster's suggestion && repo https://github.com/tversteeg/direct-gui
 use direct_gui::*;
 use minifb::*;
 
 
 fn main() {
-    let mut cpu = cpu::CPU::new(); // initialise a new cpu 
-    let mut file = File::open("games/INVADERS").unwrap(); //open a game.
+    let mut cpu = cpu::CPU::new(); 
+    let mut file = File::open("games/TICTAC").unwrap(); //open a game.
     let mut program = Vec::<u8>::new();
     let _bytecount = file.read_to_end(&mut program); //read to a buffer 
     cpu.load(&mut program); //load the program in CPU.
-    cpu.load_sprites(); //load sprites
-    let mut window = Window::new("chip 8 emu - ESC to exit", 640, 320, WindowOptions::default()).expect("Unable to open window");
+    cpu.load_sprites(); // initialise a new cpu 
+    let mut window = Window::new("Chip 8 Emulator", 640, 320, WindowOptions::default()).expect("Unable to open window");
     let screen_size = (640i32, 320i32);
     let mut buffer: Vec<u32> = vec![0; (screen_size.0 * screen_size.1) as usize];
     let mut gui = Gui::new(screen_size);
@@ -43,7 +43,7 @@ fn main() {
         for (_i, &column) in scaled.iter().enumerate(){
             for (_j, &row) in column.iter().enumerate() {
                 if row {
-                   buffer[k] = 0xffffff;
+                   buffer[k] = 0xa4f644;
                     
                 }else {
                     buffer[k] = 0;
@@ -56,3 +56,8 @@ fn main() {
     }
     cpu.cycle();
 }
+
+
+
+
+

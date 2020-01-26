@@ -149,6 +149,13 @@ impl CPU {
             _   => self.unimplemented()
         }
     }
+    fn code_exxx(&mut self) {
+        match self.opcode & 0x00FF {
+            0x9E => self.op_skp_vx(),
+            0xA1 => self.op_sknp_vx(),
+            _    => self.unimplemented()
+        }
+    }
     fn code_fxxx(&mut self) {
         match self.opcode & 0x00FF {
             0x07 => self.op_ld_vx_dt(),
@@ -163,19 +170,9 @@ impl CPU {
             _    => self.unimplemented()
         }
     }
-
-    fn code_exxx(&mut self) {
-        match self.opcode & 0x00FF {
-            0x9E => self.op_skp_vx(),
-            0xA1 => self.op_sknp_vx(),
-            _    => self.unimplemented()
-        }
-    }
-
     //clear screen operation
     fn op_cls(&mut self) {
         self.display = [[false; 64]; 32];
-
         self.inc_pc();
     }
     // Return from a subroutine.

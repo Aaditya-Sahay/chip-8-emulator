@@ -118,9 +118,9 @@ impl CPU {
             0xB000 => self.op_jp_v0_addr(),
             0xC000 => self.op_rnd_vx_byte(),
             0xD000 => self.op_drw_vx_vy_n(), // this was a pain.
-            0xE000 => self.code_exxx(),
+            0xE000 => self.code_exxx(), 
             0xF000 => self.code_fxxx(),
-            _      => self.unimplemented()
+            _      => self.unimplemented() //handling for a case where opcode isnt implemented. 
         }
     }
     // instruction matching 0xxx format. 
@@ -149,6 +149,7 @@ impl CPU {
             _   => self.unimplemented()
         }
     }
+    //further match exxx
     fn code_exxx(&mut self) {
         match self.opcode & 0x00FF {
             0x9E => self.op_skp_vx(),
@@ -156,6 +157,7 @@ impl CPU {
             _    => self.unimplemented()
         }
     }
+    //further match fxxx
     fn code_fxxx(&mut self) {
         match self.opcode & 0x00FF {
             0x07 => self.op_ld_vx_dt(),
@@ -170,6 +172,12 @@ impl CPU {
             _    => self.unimplemented()
         }
     }
+
+
+    /* OPCODE IMPLEMENTATIONS START HERE */
+
+    //every opcode besides jump to nnn increments program counter.
+
     //clear screen operation
     fn op_cls(&mut self) {
         self.display = [[false; 64]; 32];
@@ -217,36 +225,41 @@ impl CPU {
         self.v[self.get_x() as usize] = self.get_kk();
         self.inc_pc();
     }
-
+    // add vx and kk 
     fn op_add_vx_byte(&mut self) {
         let x = self.get_x() as usize;
         self.v[x] = ((self.v[x] as u16) + (self.get_kk() as u16)) as u8;
         self.inc_pc();
     }
+    //load vy in vx.
     fn op_ld_vx_vy(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
         self.v[x] = self.v[y];
         self.inc_pc();
     }
+    // do an or on vx and vy and store in vx
     fn op_or(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
         self.v[x] = self.v[x] | self.v[y];
         self.inc_pc();
     }
+    //do an and on vx and vy and store result in vx
     fn op_and(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
         self.v[x] = self.v[x] & self.v[y];
         self.inc_pc();
     }
+    //do an exclusive or of vx and vy and store the result in vx 
     fn op_xor(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
-        self.v[x] = self.v[x] ^ self.v[y];
+        self.v[x] = self.v[x] ^ self.v[y]; 
         self.inc_pc();
     }
+    //add Vx and Vy
     fn op_add_vx_vy(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
@@ -257,41 +270,36 @@ impl CPU {
         } else {
             self.v[0xF] = 0;
         }
-
         self.v[x] = sum as u8;
         self.inc_pc();
     }
+
     fn op_sub_vx_vy(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
-
         if self.v[x] > self.v[y] { 
-            self.v[0xf] = 1;
+            self.v[15] = 1;
         } else {
-            self.v[0xf] = 0;
+            self.v[15] = 0;
         }
-
         self.v[x] = self.v[x].wrapping_sub(self.v[y]);
         self.inc_pc();
     }
     fn op_shr_vx_vy(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
-
-        self.v[0xf] = self.v[y] & 1;
+        self.v[15] = self.v[y] & 1;
         self.v[x] = self.v[y] >> 1;
         self.inc_pc();
     }
     fn op_subn_vx_vy(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
-
         if self.v[y] > self.v[x] { 
-            self.v[0xf] = 1;
+            self.v[15] = 1;
         } else {
-            self.v[0xf] = 0;
+            self.v[15] = 0;
         }
-
         self.v[x] = self.v[y].wrapping_sub(self.v[x]);
         self.inc_pc();
     }
@@ -299,7 +307,7 @@ impl CPU {
     fn op_shl_vx_vy(&mut self) {
         let x = self.get_x() as usize;
         let y = self.get_y() as usize;
-        self.v[0xf] = self.v[y]>> 7;
+        self.v[15] = self.v[y]>> 7;
         self.v[x] = self.v[y] << 1;
         self.inc_pc();
     }
@@ -364,8 +372,12 @@ impl CPU {
 
             }
         }
-
-        if flipped { self.v[0xF] = 1} else { self.v[0xF] = 0 }
+        //setting vF
+        if flipped { 
+            self.v[15] = 1;
+        } else { 
+            self.v[15] = 0;
+        }
         self.inc_pc();
     }
     fn op_skp_vx(&mut self) {

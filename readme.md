@@ -4,6 +4,8 @@ This is rough implementation of chip 8 emulator.
 
 http://devernay.free.fr/hacks/chip8/C8TECH10.HTM for more details about CHIP8.
 
+![](./images/display.png)
+
 
 
 ## Things still left to implement.
@@ -40,4 +42,5 @@ keystrokes, sound and delay don't do anything for now, except I needed to declar
 
 ## Credits
 
-[Hammster](https://github.com/Hammster) for the suggestion of building this, and also letting me know about this crate [direct-gui](https://github.com/tversteeg/direct-gui).
+[Hammster](https://github.com/Hammster) for the suggestion of building this and his help during it. 
+[direct-gui](https://github.com/tversteeg/direct-gui).

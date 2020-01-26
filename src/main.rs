@@ -42,7 +42,7 @@ fn main() {
         //flatten the scaled array and put that in the buffer.
         for (_i, &column) in scaled.iter().enumerate() {
             for (_j, &row) in column.iter().enumerate() {
-                if row {
+                if !row {
                     buffer[k] = 0xa4f644;
                 } else {
                     buffer[k] = 0;

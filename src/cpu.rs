@@ -117,7 +117,7 @@ impl CPU {
             0xA000 => self.op_ld_i_addr(), 
             0xB000 => self.op_jp_v0_addr(),
             0xC000 => self.op_rnd_vx_byte(),
-            0xD000 => self.op_drw_vx_vy_n(),
+            0xD000 => self.op_drw_vx_vy_n(), // this was a pain.
             0xE000 => self.code_exxx(),
             0xF000 => self.code_fxxx(),
             _      => self.unimplemented()
@@ -324,7 +324,6 @@ impl CPU {
     fn op_drw_vx_vy_n(&mut self) {
       // will draw here 
       /*
-        from the spec book.
         The interpreter reads n bytes from memory, starting at the address stored in I. 
         These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). 
         Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, 
@@ -354,13 +353,13 @@ impl CPU {
                     vxp8 = vx + 8; 
                 }
                 let slice = &mut row[vx .. vxp8];
-                let cur_row_sprite = &sprite[row_count];
+                let current_sprite = &sprite[row_count];
                 for pixel in 0..slice.len() {
-                        let sprite_pixel = cur_row_sprite & (0x80 >> pixel) != 0;
+                        let sprite_pixel = current_sprite & (0x80 >> pixel) != 0;
                         if slice[pixel] & sprite_pixel {
                             flipped = true;
                         }
-                        slice[pixel] = slice[pixel] ^ sprite_pixel;
+                        slice[pixel] = slice[pixel] ^ sprite_pixel; //if both are true you get 0, if both are false you get 1
                 }
 
             }
@@ -404,8 +403,6 @@ impl CPU {
         self.delay = self.v[self.get_x() as usize];
         self.inc_pc();
     }
-
-    // Fx18 - LD ST, Vx -- Set sound timer = Vx
     // DT is set equal to the value of Vx.
     fn op_ld_st_vx(&mut self) {
         self.sound = self.v[self.get_x() as usize];

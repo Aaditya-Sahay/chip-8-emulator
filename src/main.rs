@@ -7,7 +7,7 @@ extern crate minifb;
 use std::fs::File;
 use std::io::Read;
 
-//https://github.com/Hammster's suggestion && repo https://github.com/tversteeg/direct-gui
+
 use direct_gui::*;
 use minifb::*;
 
@@ -58,3 +58,4 @@ fn main() {
 
 /* putting everything together */
 
+/*will implement a runner*/
